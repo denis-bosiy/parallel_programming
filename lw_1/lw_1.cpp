@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 {
 	try
 	{
-		const int threadsCount = ProcessArgv(argc, argv) ? ProcessArgv(argc, argv) : 0;
+		const int threadsCount = ProcessArgv(argc, argv);
 		HANDLE* handles = new HANDLE[threadsCount];
 		for (int i = 0; i < threadsCount; i++) {
 			int* threadIndex = new int(i);
