@@ -7,7 +7,7 @@
 
 DWORD WINAPI ThreadProc(CONST LPVOID lpParam)
 {
-	const int threadIndex = *(int*)(lpParam);
+	const int threadIndex = *static_cast<int*>(lpParam);
 	delete lpParam;
 
 	std::cout << "Thread number";
