@@ -8,15 +8,17 @@
 
 #define MAX_THREADS_COUNT 16
 #define MAX_KERNELS_COUNT 4
+#define M_PI 3.14
 
 struct Args
 {
     char* inputFilePath;
     char* outputFilePath;
-    int kernelsCount;
+    int kernelsCount; 
     int threadsCount;
 
-    Args(char* _inputFilePath, char* _outputFilePath, int _kernelsCount, int _threadsCount) {
+    Args(char* _inputFilePath, char* _outputFilePath, int _kernelsCount, int _threadsCount)
+    {
         inputFilePath = _inputFilePath;
         outputFilePath = _outputFilePath;
         kernelsCount = _kernelsCount;
@@ -24,98 +26,74 @@ struct Args
     }
 };
 
+double GetGaussianFunctionValue(int x)
+{
+    const double SIGMA_VALUE = 10;
+
+    return (1 / (sqrt(M_PI * SIGMA_VALUE * SIGMA_VALUE))) * exp(-(x*x) / (2 * SIGMA_VALUE * SIGMA_VALUE));
+}
+
 DWORD WINAPI ThreadProc(CONST LPVOID lpParam)
 {
-    // Gaussian blur algorithm
     const std::vector<RGBApixel*> imageRow = *(std::vector<RGBApixel*>*)(lpParam);
-    std::cout << imageRow.size() << std::endl;
-    //for (int i = 0; i < imageRow.size(); i++)
-    //{
-    //    RGBApixel* sumPixel = new RGBApixel();
-    //    if (i == 0 && imageRow.size() > 1)
-    //    {
-    //        sumPixel->Red = (2 * imageRow[i]->Red) % 255;
-    //        sumPixel->Green = (2 * imageRow[i]->Green) % 255;
-    //        sumPixel->Blue = (2 * imageRow[i]->Blue) % 255;
-    //        sumPixel->Alpha = (2 * imageRow[i]->Alpha) % 255;
 
-    //        sumPixel->Red = sumPixel->Red + imageRow[i + 1]->Red % 255;
-    //        sumPixel->Green = sumPixel->Green + imageRow[i + 1]->Green % 255;
-    //        sumPixel->Blue = sumPixel->Blue + imageRow[i + 1]->Blue % 255;
-    //        sumPixel->Alpha = sumPixel->Alpha + imageRow[i + 1]->Alpha % 255;
+    // Gaussian blur algorithm
+    for (int i = 0; i < imageRow.size(); i++)
+    {
+        RGBApixel* sumPixel = new RGBApixel();
+        sumPixel->Red = 0;
+        sumPixel->Green = 0;
+        sumPixel->Blue = 0;
+        sumPixel->Alpha = 0;
 
-    //        sumPixel->Red = sumPixel->Red / 3;
-    //        sumPixel->Green = sumPixel->Green / 3;
-    //        sumPixel->Blue = sumPixel->Blue / 3;
-    //        sumPixel->Alpha = sumPixel->Alpha / 3;
-    //    }
-    //    else if (i == imageRow.size() - 1 && imageRow.size() > 1)
-    //    {
-    //        sumPixel->Red = (2 * imageRow[i]->Red) % 255;
-    //        sumPixel->Green = (2 * imageRow[i]->Green) % 255;
-    //        sumPixel->Blue = (2 * imageRow[i]->Blue) % 255;
-    //        sumPixel->Alpha = (2 * imageRow[i]->Alpha) % 255;
+        double gaussianFunctionValuesSum = 0;
+        for (int j = i - 10; j < i + 10; j++)
+        {
+            if (j < 0)
+            {
+                continue;
+            }
+            if (j >= imageRow.size())
+            {
+                break;
+            }
 
-    //        sumPixel->Red = sumPixel->Red + imageRow[i - 1]->Red % 255;
-    //        sumPixel->Green = sumPixel->Green + imageRow[i - 1]->Green % 255;
-    //        sumPixel->Blue = sumPixel->Blue + imageRow[i - 1]->Blue % 255;
-    //        sumPixel->Alpha = sumPixel->Alpha + imageRow[i - 1]->Alpha % 255;
+            const double gaussianFunctionValue = GetGaussianFunctionValue(abs(i - j));
+            gaussianFunctionValuesSum += gaussianFunctionValue;
 
-    //        sumPixel->Red = sumPixel->Red / 3;
-    //        sumPixel->Green = sumPixel->Green / 3;
-    //        sumPixel->Blue = sumPixel->Blue / 3;
-    //        sumPixel->Alpha = sumPixel->Alpha / 3;
-    //    }
-    //    else if (imageRow.size() > 2) {
-    //        sumPixel->Red = imageRow[i - 1]->Red % 255;
-    //        sumPixel->Green = imageRow[i - 1]->Green % 255;
-    //        sumPixel->Blue = imageRow[i - 1]->Blue % 255;
-    //        sumPixel->Alpha = imageRow[i - 1]->Alpha % 255;
+            sumPixel->Red = sumPixel->Red + (int)(imageRow[j]->Red * gaussianFunctionValue) % 255;
+            sumPixel->Green = sumPixel->Green + (int)(imageRow[j]->Green * gaussianFunctionValue) % 255;
+            sumPixel->Blue = sumPixel->Blue + (int)(imageRow[j]->Blue * gaussianFunctionValue) % 255;
+        }
 
-    //        sumPixel->Red = sumPixel->Red + (2 * imageRow[i]->Red) % 255;
-    //        sumPixel->Green = sumPixel->Green + (2 * imageRow[i]->Green) % 255;
-    //        sumPixel->Blue = sumPixel->Blue + (2 * imageRow[i]->Blue) % 255;
-    //        sumPixel->Alpha = sumPixel->Alpha + (2 * imageRow[i]->Alpha) % 255;
-
-    //        sumPixel->Red = sumPixel->Red + imageRow[i + 1]->Red % 255;
-    //        sumPixel->Green = sumPixel->Green + imageRow[i + 1]->Green % 255;
-    //        sumPixel->Blue = sumPixel->Blue + imageRow[i + 1]->Blue % 255;
-    //        sumPixel->Alpha = sumPixel->Alpha + imageRow[i + 1]->Alpha % 255;
-
-    //        sumPixel->Red = sumPixel->Red / 4;
-    //        sumPixel->Green = sumPixel->Green / 4;
-    //        sumPixel->Blue = sumPixel->Blue / 4;
-    //        sumPixel->Alpha = sumPixel->Alpha / 4;
-    //    }
-    //    else {
-    //        continue;
-    //    }
-    //    std::cout << (int)sumPixel->Red << std::endl;
-    //    imageRow[i]->Red = sumPixel->Red;
-    //    imageRow[i]->Green = sumPixel->Green;
-    //    imageRow[i]->Blue = sumPixel->Blue;
-    //    imageRow[i]->Alpha = sumPixel->Alpha;
-    //}
+        imageRow[i]->Red = sumPixel->Red / gaussianFunctionValuesSum;
+        imageRow[i]->Green = sumPixel->Green / gaussianFunctionValuesSum;
+        imageRow[i]->Blue = sumPixel->Blue / gaussianFunctionValuesSum;
+    }
 
     ExitThread(0);
 }
 
 Args ProcessArgs(int argc, char* argv[])
 {
-    if (argc - 1 != 4) {
+    if (argc - 1 != 4)
+    {
         throw std::length_error("There should be 4 arguments: inputImagePath, outputImagePath, kernelsCount and threadsCount");
     }
 
-    try {
+    try
+    {
         std::ifstream testStream;
         testStream.open(argv[1]);
     }
-    catch (std::exception) {
+    catch (std::exception)
+    {
         throw std::invalid_argument("Can not open input image");
     }
 
     const int threadsCount = std::stoi(argv[3]);
-    if (threadsCount < 1 || threadsCount > MAX_THREADS_COUNT) {
+    if (threadsCount < 1 || threadsCount > MAX_THREADS_COUNT)
+    {
         const std::string errorMsg = "Threads count should be less than " +
             std::to_string(MAX_THREADS_COUNT + 1) +
             " and more than 0";
@@ -123,7 +101,8 @@ Args ProcessArgs(int argc, char* argv[])
     }
 
     const int kernelsCount = std::stoi(argv[4]);
-    if (kernelsCount < 1 || kernelsCount > MAX_KERNELS_COUNT) {
+    if (kernelsCount < 1 || kernelsCount > MAX_KERNELS_COUNT)
+    {
         const std::string errorMsg = "Kernels count should be less than " +
             std::to_string(MAX_KERNELS_COUNT + 1) +
             " and more than 0";
@@ -133,31 +112,29 @@ Args ProcessArgs(int argc, char* argv[])
     return * new Args(argv[1], argv[2], threadsCount, kernelsCount);
 }
 
-void ClearThreads(HANDLE* handles, int threadsCount) {
-    for (int i = 0; i < threadsCount; i++) {
-        //delete handles[i];
+void ClearThreads(HANDLE* handles, int threadsCount)
+{
+    for (int i = 0; i < threadsCount; i++)
+    {
+        CloseHandle(handles[i]);
     }
 }
 
-void ProcessRows(int kernelsCount, HANDLE* handles, const std::vector<std::vector<RGBApixel*>> imageRows) {
+void ProcessRows(int kernelsCount, HANDLE* handles, const std::vector<std::vector<RGBApixel*>> imageRows)
+{
     for (int i = 0; i < imageRows.size(); i++)
     {
-        std::vector<RGBApixel*> imageRow = {};
+        std::vector<RGBApixel*>* imageRow = new std::vector<RGBApixel*>(0);
         for (int j = 0; j < imageRows[i].size(); j++)
         {
-            RGBApixel* newPixel = new RGBApixel();
-            newPixel->Red = imageRows[i][j]->Red;
-            newPixel->Green = imageRows[i][j]->Green;
-            newPixel->Blue = imageRows[i][j]->Blue;
-            newPixel->Alpha = imageRows[i][j]->Alpha;
-
-            imageRow.push_back(newPixel);
+            (*imageRow).push_back(imageRows[i][j]);
         }
-        handles[i] = CreateThread(NULL, 0, &ThreadProc, &imageRow, CREATE_SUSPENDED, NULL);
+        handles[i] = CreateThread(NULL, 0, &ThreadProc, imageRow, CREATE_SUSPENDED, NULL);
         SetProcessAffinityMask(handles[i], kernelsCount);
     }
 
-    for (int i = 0; i < imageRows.size(); i++) {
+    for (int i = 0; i < imageRows.size(); i++)
+    {
         ResumeThread(handles[i]);
     }
 
@@ -185,44 +162,64 @@ std::vector<RGBApixel*> ReadRowFromFile(BMP File, int rowIndex)
     return row;
 }
 
+void CreateOutputFile(BMP& inputFile, const char* outputFilePath, std::vector<std::vector<RGBApixel*>>& totalImageRows)
+{
+    for (int rowIndex = 0; rowIndex < inputFile.TellHeight(); rowIndex++)
+    {
+        for (int columnIndex = 0; columnIndex < inputFile.TellWidth(); columnIndex++)
+        {
+            inputFile(columnIndex, rowIndex)->Red = totalImageRows[rowIndex][columnIndex]->Red;
+            inputFile(columnIndex, rowIndex)->Green = totalImageRows[rowIndex][columnIndex]->Green;
+            inputFile(columnIndex, rowIndex)->Blue = totalImageRows[rowIndex][columnIndex]->Blue;
+            inputFile(columnIndex, rowIndex)->Alpha = totalImageRows[rowIndex][columnIndex]->Alpha;
+        }
+    }
+    inputFile.WriteToFile(outputFilePath);
+}
+
+std::vector<std::vector<RGBApixel*>> CreateBluredImage(BMP& inputFile,
+    int threadsCount,
+    const char* inputFilePath,
+    int kernelsCount
+)
+{
+    std::vector<std::vector<RGBApixel*>> totalImageRows = {};
+    HANDLE* handles = new HANDLE[threadsCount];
+    inputFile.ReadFromFile(inputFilePath);
+
+    for (int rowIndex = 0; rowIndex < inputFile.TellHeight(); rowIndex = rowIndex + threadsCount)
+    {
+        std::vector<std::vector<RGBApixel*>> imageRows = {};
+        for (int i = 0; i < threadsCount; i++)
+        {
+            imageRows.push_back(ReadRowFromFile(inputFile, rowIndex + i));
+        }
+
+        ProcessRows(kernelsCount, handles, imageRows);
+
+        for (int i = 0; i < threadsCount; i++)
+        {
+            totalImageRows.push_back(imageRows[i]);
+        }
+    }
+
+    return totalImageRows;
+}
+
 int main(int argc, char* argv[])
 {
     try
     {
         auto start = std::chrono::high_resolution_clock::now();
         Args parsedArgs = ProcessArgs(argc, argv);
-        HANDLE* handles = new HANDLE[parsedArgs.threadsCount];
         BMP inputFile;
-        inputFile.ReadFromFile(parsedArgs.inputFilePath);
-        std::vector<std::vector<RGBApixel*>> totalImageRows = {};
 
-        for (int rowIndex = 0; rowIndex < inputFile.TellHeight(); rowIndex = rowIndex + parsedArgs.threadsCount)
-        {
-            std::vector<std::vector<RGBApixel*>> imageRows = {};
-            for (int i = 0; i < parsedArgs.threadsCount; i++)
-            {
-                imageRows.push_back(ReadRowFromFile(inputFile, rowIndex + i));
-            }
-
-            ProcessRows(parsedArgs.kernelsCount, handles, imageRows);
-
-            for (int i = 0; i < parsedArgs.threadsCount; i++)
-            {
-                totalImageRows.push_back(imageRows[i]);
-            }
-        }
-        for (int rowIndex = 0; rowIndex < inputFile.TellHeight(); rowIndex++)
-        {
-            for (int columnIndex = 0; columnIndex < inputFile.TellWidth(); columnIndex++)
-            {
-                //std::cout << (int)totalImageRows[rowIndex][columnIndex]->Red << std::endl;
-                inputFile(columnIndex, rowIndex)->Red = totalImageRows[rowIndex][columnIndex]->Red;
-                inputFile(columnIndex, rowIndex)->Green = totalImageRows[rowIndex][columnIndex]->Green;
-                inputFile(columnIndex, rowIndex)->Blue = totalImageRows[rowIndex][columnIndex]->Blue;
-                inputFile(columnIndex, rowIndex)->Alpha = totalImageRows[rowIndex][columnIndex]->Alpha;
-            }
-        }
-        inputFile.WriteToFile(parsedArgs.outputFilePath);
+        std::vector<std::vector<RGBApixel*>> bluredImage = CreateBluredImage(inputFile,
+            parsedArgs.threadsCount,
+            parsedArgs.inputFilePath,
+            parsedArgs.kernelsCount
+        );
+        CreateOutputFile(inputFile, parsedArgs.outputFilePath, bluredImage);
 
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
