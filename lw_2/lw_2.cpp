@@ -14,14 +14,14 @@ struct Args
 {
     char* inputFilePath;
     char* outputFilePath;
-    int kernelsCount; 
+    int coresCount; 
     int threadsCount;
 
-    Args(char* _inputFilePath, char* _outputFilePath, int _kernelsCount, int _threadsCount)
+    Args(char* _inputFilePath, char* _outputFilePath, int _coresCount, int _threadsCount)
     {
         inputFilePath = _inputFilePath;
         outputFilePath = _outputFilePath;
-        kernelsCount = _kernelsCount;
+        coresCount = _coresCount;
         threadsCount = _threadsCount;
     }
 };
@@ -120,7 +120,7 @@ void ClearThreads(HANDLE* handles, int threadsCount)
     }
 }
 
-void ProcessRows(int kernelsCount, HANDLE* handles, const std::vector<std::vector<RGBApixel*>> imageRows)
+void ProcessRows(int coresCount, HANDLE* handles, const std::vector<std::vector<RGBApixel*>> imageRows)
 {
     for (int i = 0; i < imageRows.size(); i++)
     {
@@ -130,7 +130,8 @@ void ProcessRows(int kernelsCount, HANDLE* handles, const std::vector<std::vecto
             (*imageRow).push_back(imageRows[i][j]);
         }
         handles[i] = CreateThread(NULL, 0, &ThreadProc, imageRow, CREATE_SUSPENDED, NULL);
-        SetProcessAffinityMask(handles[i], kernelsCount);
+        // Set cores count to the thread
+        SetProcessAffinityMask(handles[i], static_cast<DWORD_PTR>(1 << (coresCount-1)));
     }
 
     for (int i = 0; i < imageRows.size(); i++)
@@ -180,7 +181,7 @@ void CreateOutputFile(BMP& inputFile, const char* outputFilePath, std::vector<st
 std::vector<std::vector<RGBApixel*>> CreateBluredImage(BMP& inputFile,
     int threadsCount,
     const char* inputFilePath,
-    int kernelsCount
+    int coresCount
 )
 {
     std::vector<std::vector<RGBApixel*>> totalImageRows = {};
@@ -195,7 +196,7 @@ std::vector<std::vector<RGBApixel*>> CreateBluredImage(BMP& inputFile,
             imageRows.push_back(ReadRowFromFile(inputFile, rowIndex + i));
         }
 
-        ProcessRows(kernelsCount, handles, imageRows);
+        ProcessRows(coresCount, handles, imageRows);
 
         for (int i = 0; i < threadsCount; i++)
         {
@@ -217,13 +218,13 @@ int main(int argc, char* argv[])
         std::vector<std::vector<RGBApixel*>> bluredImage = CreateBluredImage(inputFile,
             parsedArgs.threadsCount,
             parsedArgs.inputFilePath,
-            parsedArgs.kernelsCount
+            parsedArgs.coresCount
         );
         CreateOutputFile(inputFile, parsedArgs.outputFilePath, bluredImage);
 
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        std::cout << "Execution time: " << std::to_string(duration.count()) << std::endl;
+        std::cout << "Execution time: " << duration.count() << std::endl;
     } catch (std::exception& e)
     {
         std::cout << e.what() << std::endl;
