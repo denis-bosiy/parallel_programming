@@ -1,1 +1,1 @@
-Документ с графиками и выводами по графикам: https://docs.google.com/spreadsheets/d/1QhAdGbfgW5evurvl6YEi413EI0SgHZST/edit#gid=922255072
+Р”РѕРєСѓРјРµРЅС‚ СЃ РіСЂР°С„РёРєРѕРј Рё РІС‹РІРѕРґРѕРј РїРѕ РіСЂР°С„РёРєР°Рј: https://docs.google.com/spreadsheets/d/1QhAdGbfgW5evurvl6YEi413EI0SgHZST/edit#gid=922255072
