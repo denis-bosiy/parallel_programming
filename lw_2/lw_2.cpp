@@ -17,12 +17,12 @@ struct Args
     int coresCount; 
     int threadsCount;
 
-    Args(char* _inputFilePath, char* _outputFilePath, int _coresCount, int _threadsCount)
+    Args(char* _inputFilePath, char* _outputFilePath, int _threadsCount, int _coresCount)
     {
         inputFilePath = _inputFilePath;
         outputFilePath = _outputFilePath;
-        coresCount = _coresCount;
         threadsCount = _threadsCount;
+        coresCount = _coresCount;
     }
 };
 
@@ -131,7 +131,7 @@ void ProcessRows(int coresCount, HANDLE* handles, const std::vector<std::vector<
         }
         handles[i] = CreateThread(NULL, 0, &ThreadProc, imageRow, CREATE_SUSPENDED, NULL);
         // Set cores count to the thread
-        SetProcessAffinityMask(handles[i], static_cast<DWORD_PTR>(1 << (coresCount-1)));
+        SetProcessAffinityMask(handles[i], static_cast<DWORD_PTR>(1 << static_cast<int>(pow(coresCount - 1, 2))));
     }
 
     for (int i = 0; i < imageRows.size(); i++)
@@ -191,14 +191,19 @@ std::vector<std::vector<RGBApixel*>> CreateBluredImage(BMP& inputFile,
     for (int rowIndex = 0; rowIndex < inputFile.TellHeight(); rowIndex = rowIndex + threadsCount)
     {
         std::vector<std::vector<RGBApixel*>> imageRows = {};
-        for (int i = 0; i < threadsCount; i++)
+        int imageRowsCount = threadsCount;
+        if (rowIndex + threadsCount >= inputFile.TellHeight())
+        {
+            imageRowsCount = inputFile.TellHeight() - rowIndex;
+        }
+        for (int i = 0; i < imageRowsCount; i++)
         {
             imageRows.push_back(ReadRowFromFile(inputFile, rowIndex + i));
         }
 
         ProcessRows(coresCount, handles, imageRows);
 
-        for (int i = 0; i < threadsCount; i++)
+        for (int i = 0; i < imageRowsCount; i++)
         {
             totalImageRows.push_back(imageRows[i]);
         }
