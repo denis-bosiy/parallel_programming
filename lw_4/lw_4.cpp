@@ -8,9 +8,9 @@
 
 enum THREAD_PRIORITY
 {
-    BELOW_NORMAL = -1,
-    NORMAL,
-    ABOVE_NORMAL
+    BELOW_NORMAL = THREAD_PRIORITY_BELOW_NORMAL,
+    NORMAL = THREAD_PRIORITY_NORMAL,
+    ABOVE_NORMAL = THREAD_PRIORITY_ABOVE_NORMAL
 };
 
 struct Args
@@ -92,11 +92,11 @@ DWORD WINAPI ThreadProc(CONST LPVOID lpParam)
         imageRow[i]->Red = sumPixel->Red / gaussianFunctionValuesSum;
         imageRow[i]->Green = sumPixel->Green / gaussianFunctionValuesSum;
         imageRow[i]->Blue = sumPixel->Blue / gaussianFunctionValuesSum;
-    }
 
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - programExecutionStartTime);
-    std::cout << "Execution time: " + std::to_string(duration.count()) + "; Thread index: " + std::to_string(threadNumber) + ";\n";
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - programExecutionStartTime);
+        std::cout << "Execution time: " + std::to_string(duration.count()) + "; Thread index: " + std::to_string(threadNumber) + ";\n";
+    }
 
     ExitThread(0);
 }
