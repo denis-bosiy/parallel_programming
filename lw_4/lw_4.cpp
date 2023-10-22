@@ -6,9 +6,12 @@
 #include <vector>
 #include <chrono>
 
-#define MAX_THREADS_COUNT 16
-#define MAX_KERNELS_COUNT 4
-#define M_PI 3.14
+enum THREAD_PRIORITY
+{
+    BELOW_NORMAL = -1,
+    NORMAL,
+    ABOVE_NORMAL
+};
 
 struct Args
 {
@@ -16,26 +19,46 @@ struct Args
     char* outputFilePath;
     int coresCount;
     int threadsCount;
+    std::vector<THREAD_PRIORITY> threadPriorities;
 
-    Args(char* _inputFilePath, char* _outputFilePath, int _coresCount, int _threadsCount)
+    Args(char* _inputFilePath, char* _outputFilePath, int _threadsCount, int _coresCount, std::vector<THREAD_PRIORITY> _threadPriorities)
     {
         inputFilePath = _inputFilePath;
         outputFilePath = _outputFilePath;
-        coresCount = _coresCount;
         threadsCount = _threadsCount;
+        coresCount = _coresCount;
+        threadPriorities = _threadPriorities;
     }
 };
 
 double GetGaussianFunctionValue(int x)
 {
-    const double SIGMA_VALUE = 10;
+    const float M_PI = 3.14;
+    const float SIGMA_VALUE = 10;
 
     return (1 / (sqrt(M_PI * SIGMA_VALUE * SIGMA_VALUE))) * exp(-(x * x) / (2 * SIGMA_VALUE * SIGMA_VALUE));
 }
 
+struct ThreadInputData
+{
+    std::vector<RGBApixel*> imageRow;
+    int threadNumber;
+    std::chrono::steady_clock::time_point programExecutionStartTime;
+
+    ThreadInputData(std::vector<RGBApixel*> _imageRow, int _threadNumber, std::chrono::steady_clock::time_point _programExecutionStartTime)
+    {
+        imageRow = _imageRow;
+        threadNumber = _threadNumber;
+        programExecutionStartTime = _programExecutionStartTime;
+    }
+};
+
 DWORD WINAPI ThreadProc(CONST LPVOID lpParam)
 {
-    const std::vector<RGBApixel*> imageRow = *(std::vector<RGBApixel*>*)(lpParam);
+    const ThreadInputData threadInputData = *(ThreadInputData*)(lpParam);
+    const std::vector<RGBApixel*> imageRow = threadInputData.imageRow;
+    const int threadNumber = threadInputData.threadNumber;
+    const std::chrono::steady_clock::time_point programExecutionStartTime = threadInputData.programExecutionStartTime;
 
     // Gaussian blur algorithm
     for (int i = 0; i < imageRow.size(); i++)
@@ -46,7 +69,7 @@ DWORD WINAPI ThreadProc(CONST LPVOID lpParam)
         sumPixel->Blue = 0;
         sumPixel->Alpha = 0;
 
-        double gaussianFunctionValuesSum = 0;
+        float gaussianFunctionValuesSum = 0;
         for (int j = i - 10; j < i + 10; j++)
         {
             if (j < 0)
@@ -71,14 +94,41 @@ DWORD WINAPI ThreadProc(CONST LPVOID lpParam)
         imageRow[i]->Blue = sumPixel->Blue / gaussianFunctionValuesSum;
     }
 
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - programExecutionStartTime);
+    std::cout << "Execution time: " + std::to_string(duration.count()) + "; Thread index: " + std::to_string(threadNumber) + ";\n";
+
     ExitThread(0);
+}
+
+bool IsHelpRequired(char* argv[])
+{
+    return strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "/?") == 0;
 }
 
 Args ProcessArgs(int argc, char* argv[])
 {
-    if (argc - 1 != 4)
+    const int MAX_THREADS_COUNT = 16;
+    const std::string BELOW_NORMAL_VALUE = "below_normal";
+    const std::string NORMAL_VALUE = "normal";
+    const std::string ABOVE_NORMAL_VALUE = "above_normal";
+    const int MAX_CORES_COUNT = 4;
+
+    if (argc == 2 && IsHelpRequired(argv))
     {
-        throw std::length_error("There should be 4 arguments: inputImagePath, outputImagePath, kernelsCount and threadsCount");
+        std::cout << "Program arguments:" << std::endl;
+        std::cout << "inputImagePath: string to path, where locates input image" << std::endl;
+        std::cout << "outputImagePath: string to path, where locates output image" << std::endl;
+        std::cout << "threadsCount: number of threads, that will be catched by the program" << std::endl;
+        std::cout << "[threadsPriorities]: threads priorities separated by space. ThreadPriority can be: below_normal, normal, above_normal" << std::endl;
+        std::cout << "coresCount: number of cores, that will be catched by the program" << std::endl;
+
+        throw std::invalid_argument("Happy coding!");
+    }
+
+    if (argc - 1 < 5)
+    {
+        throw std::length_error("There should be at least 5 arguments: inputImagePath, outputImagePath, threadsCount, [threadsPriorities] and coresCount");
     }
 
     try
@@ -100,16 +150,41 @@ Args ProcessArgs(int argc, char* argv[])
         throw std::invalid_argument(errorMsg);
     }
 
-    const int kernelsCount = std::stoi(argv[4]);
-    if (kernelsCount < 1 || kernelsCount > MAX_KERNELS_COUNT)
+    std::vector<THREAD_PRIORITY> threadPriorities = {};
+    for (int i = 0; i < threadsCount; i++)
     {
-        const std::string errorMsg = "Kernels count should be less than " +
-            std::to_string(MAX_KERNELS_COUNT + 1) +
+        if (argv[4 + i] == BELOW_NORMAL_VALUE || argv[4 + i] == NORMAL_VALUE || argv[4 + i] == ABOVE_NORMAL_VALUE)
+        {
+            if (argv[4 + i] == BELOW_NORMAL_VALUE)
+            {
+                threadPriorities.push_back(BELOW_NORMAL);
+            }
+            if (argv[4 + i] == NORMAL_VALUE)
+            {
+                threadPriorities.push_back(NORMAL);
+            }
+            if (argv[4 + i] == ABOVE_NORMAL_VALUE)
+            {
+                threadPriorities.push_back(ABOVE_NORMAL);
+            }
+        }
+        else
+        {
+            const std::string errorMsg = "Thread priority of the " + std::to_string(i + 1) + " thread name is incorrect";
+            throw std::invalid_argument(errorMsg);
+        }
+    }
+
+    const int coresCount = std::stoi(argv[4 + threadsCount]);
+    if (coresCount < 1 || coresCount > MAX_CORES_COUNT)
+    {
+        const std::string errorMsg = "Cores count should be less than " +
+            std::to_string(MAX_CORES_COUNT + 1) +
             " and more than 0";
         throw std::invalid_argument(errorMsg);
     }
 
-    return *new Args(argv[1], argv[2], threadsCount, kernelsCount);
+    return *new Args(argv[1], argv[2], threadsCount, coresCount, threadPriorities);
 }
 
 void ClearThreads(HANDLE* handles, int threadsCount)
@@ -120,7 +195,7 @@ void ClearThreads(HANDLE* handles, int threadsCount)
     }
 }
 
-void ProcessRows(int coresCount, HANDLE* handles, const std::vector<std::vector<RGBApixel*>> imageRows)
+void ProcessRows(int coresCount, HANDLE* handles, std::vector<THREAD_PRIORITY> threadPriorities, const std::vector<std::vector<RGBApixel*>> imageRows, std::chrono::steady_clock::time_point programExecutionStartTime)
 {
     for (int i = 0; i < imageRows.size(); i++)
     {
@@ -129,9 +204,12 @@ void ProcessRows(int coresCount, HANDLE* handles, const std::vector<std::vector<
         {
             (*imageRow).push_back(imageRows[i][j]);
         }
-        handles[i] = CreateThread(NULL, 0, &ThreadProc, imageRow, CREATE_SUSPENDED, NULL);
+        ThreadInputData* threadInputData = new ThreadInputData(*imageRow, i+1, programExecutionStartTime);
+        handles[i] = CreateThread(NULL, 0, &ThreadProc, threadInputData, CREATE_SUSPENDED, NULL);
         // Set cores count to the thread
-        SetProcessAffinityMask(handles[i], static_cast<DWORD_PTR>(1 << (coresCount - 1)));
+        SetProcessAffinityMask(handles[i], static_cast<DWORD_PTR>(1 << static_cast<int>(pow(coresCount - 1, 2))));
+        // Set priority to the thread
+        SetThreadPriority(handles[i], threadPriorities[i]);
     }
 
     for (int i = 0; i < imageRows.size(); i++)
@@ -180,8 +258,10 @@ void CreateOutputFile(BMP& inputFile, const char* outputFilePath, std::vector<st
 
 std::vector<std::vector<RGBApixel*>> CreateBluredImage(BMP& inputFile,
     int threadsCount,
+    std::vector<THREAD_PRIORITY> threadPriorities,
     const char* inputFilePath,
-    int coresCount
+    int coresCount,
+    std::chrono::steady_clock::time_point programExecutionStartTime
 )
 {
     std::vector<std::vector<RGBApixel*>> totalImageRows = {};
@@ -191,14 +271,19 @@ std::vector<std::vector<RGBApixel*>> CreateBluredImage(BMP& inputFile,
     for (int rowIndex = 0; rowIndex < inputFile.TellHeight(); rowIndex = rowIndex + threadsCount)
     {
         std::vector<std::vector<RGBApixel*>> imageRows = {};
-        for (int i = 0; i < threadsCount; i++)
+        int imageRowsCount = threadsCount;
+        if (rowIndex + threadsCount >= inputFile.TellHeight())
+        {
+            imageRowsCount = inputFile.TellHeight() - rowIndex;
+        }
+        for (int i = 0; i < imageRowsCount; i++)
         {
             imageRows.push_back(ReadRowFromFile(inputFile, rowIndex + i));
         }
 
-        ProcessRows(coresCount, handles, imageRows);
+        ProcessRows(coresCount, handles, threadPriorities, imageRows, programExecutionStartTime);
 
-        for (int i = 0; i < threadsCount; i++)
+        for (int i = 0; i < imageRowsCount; i++)
         {
             totalImageRows.push_back(imageRows[i]);
         }
@@ -217,14 +302,12 @@ int main(int argc, char* argv[])
 
         std::vector<std::vector<RGBApixel*>> bluredImage = CreateBluredImage(inputFile,
             parsedArgs.threadsCount,
+            parsedArgs.threadPriorities,
             parsedArgs.inputFilePath,
-            parsedArgs.coresCount
+            parsedArgs.coresCount,
+            start
         );
         CreateOutputFile(inputFile, parsedArgs.outputFilePath, bluredImage);
-
-        auto stop = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        std::cout << "Execution time: " << duration.count() << std::endl;
     }
     catch (std::exception& e)
     {

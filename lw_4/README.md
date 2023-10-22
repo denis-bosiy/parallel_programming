@@ -1,0 +1,1 @@
+Документ с графиками и выводами по графикам: https://docs.google.com/spreadsheets/d/1ujLUQJ6O4Z4qFrX6MyU3seaIE3Fxz80oUcfmXhAi5_4/edit#gid=0
